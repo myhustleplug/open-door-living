@@ -1,353 +1,202 @@
+import { useMemo, useState } from 'react'
+
 const listings = [
   {
     id: 1,
     title: 'Modern Studio in Austin',
-    location: 'Austin, Texas',
+    location: 'Austin, TX',
+    fullLocation: 'East Austin, Austin, Texas',
     price: 1050,
     type: 'Studio',
-    beds: '1 Bed',
-    image:
-      'https://images.unsplash.com/photo-1505693416388-ac5ce068fe85?auto=format&fit=crop&w=900&q=80',
+    beds: 0,
+    baths: 1,
+    sqft: 540,
+    image: 'https://images.unsplash.com/photo-1505693416388-ac5ce068fe85?auto=format&fit=crop&w=1200&q=85',
+    images: ['https://images.unsplash.com/photo-1505693416388-ac5ce068fe85?auto=format&fit=crop&w=1200&q=85', 'https://images.unsplash.com/photo-1484154218962-a197022b5858?auto=format&fit=crop&w=900&q=80', 'https://images.unsplash.com/photo-1493809842364-78817add7ffb?auto=format&fit=crop&w=900&q=80'],
     badge: 'Available now',
-    features: ['Fully furnished', 'Pet friendly', 'Near downtown'],
+    features: ['Furnished', 'Pet friendly', 'Near downtown', 'In-unit laundry'],
+    description: 'A bright, thoughtfully designed studio with an open layout, modern finishes, and easy access to East Austin cafes, parks, and transit.',
+    available: 'Available now',
   },
   {
     id: 2,
     title: 'Cozy 2BR House in Phoenix',
-    location: 'Phoenix, Arizona',
+    location: 'Phoenix, AZ',
+    fullLocation: 'North Mountain, Phoenix, Arizona',
     price: 1350,
     type: 'House',
-    beds: '2 Beds',
-    image:
-      'https://images.unsplash.com/photo-1494526585095-c41746248156?auto=format&fit=crop&w=900&q=80',
+    beds: 2,
+    baths: 2,
+    sqft: 1180,
+    image: 'https://images.unsplash.com/photo-1494526585095-c41746248156?auto=format&fit=crop&w=1200&q=85',
+    images: ['https://images.unsplash.com/photo-1494526585095-c41746248156?auto=format&fit=crop&w=1200&q=85', 'https://images.unsplash.com/photo-1600210492486-724fe5c67fb0?auto=format&fit=crop&w=900&q=80', 'https://images.unsplash.com/photo-1600607687939-ce8a6c25118c?auto=format&fit=crop&w=900&q=80'],
     badge: 'Best value',
-    features: ['Private parking', 'Spacious kitchen', 'Quiet neighborhood'],
+    features: ['Private parking', 'Spacious kitchen', 'Quiet neighborhood', 'Patio'],
+    description: 'Settle into a comfortable home with a roomy kitchen, private outdoor space, and convenient access to neighborhood shops and mountain trails.',
+    available: 'Available Dec 1',
   },
   {
     id: 3,
     title: 'Garden Apartment in Charlotte',
-    location: 'Charlotte, North Carolina',
+    location: 'Charlotte, NC',
+    fullLocation: 'Dilworth, Charlotte, North Carolina',
     price: 1200,
     type: 'Apartment',
-    beds: '1 Bed',
-    image:
-      'https://images.unsplash.com/photo-1484154218962-a197022b5858?auto=format&fit=crop&w=900&q=80',
+    beds: 1,
+    baths: 1,
+    sqft: 760,
+    image: 'https://images.unsplash.com/photo-1484154218962-a197022b5858?auto=format&fit=crop&w=1200&q=85',
+    images: ['https://images.unsplash.com/photo-1484154218962-a197022b5858?auto=format&fit=crop&w=1200&q=85', 'https://images.unsplash.com/photo-1600210492486-724fe5c67fb0?auto=format&fit=crop&w=900&q=80', 'https://images.unsplash.com/photo-1600607687939-ce8a6c25118c?auto=format&fit=crop&w=900&q=80'],
     badge: 'Limited offer',
-    features: ['Balcony', 'Gym access', 'Safe complex'],
+    features: ['Private balcony', 'Fitness room', 'Secure entry', 'Near light rail'],
+    description: 'Enjoy a calm garden-facing apartment in a walkable neighborhood, with a private balcony and the comforts of a well-maintained community.',
+    available: 'Available now',
   },
   {
     id: 4,
     title: 'Family Home in Atlanta',
-    location: 'Atlanta, Georgia',
+    location: 'Atlanta, GA',
+    fullLocation: 'East Atlanta, Atlanta, Georgia',
     price: 1750,
-    type: 'Family Home',
-    beds: '3 Beds',
-    image:
-      'https://images.unsplash.com/photo-1568605114967-8130f3a36994?auto=format&fit=crop&w=900&q=80',
+    type: 'Family home',
+    beds: 3,
+    baths: 2,
+    sqft: 1560,
+    image: 'https://images.unsplash.com/photo-1568605114967-8130f3a36994?auto=format&fit=crop&w=1200&q=85',
+    images: ['https://images.unsplash.com/photo-1568605114967-8130f3a36994?auto=format&fit=crop&w=1200&q=85', 'https://images.unsplash.com/photo-1600607687939-ce8a6c25118c?auto=format&fit=crop&w=900&q=80', 'https://images.unsplash.com/photo-1600210492486-724fe5c67fb0?auto=format&fit=crop&w=900&q=80'],
     badge: 'New listing',
-    features: ['Large backyard', '2 baths', 'School district'],
+    features: ['Large backyard', 'Two bathrooms', 'Off-street parking', 'Near parks'],
+    description: 'A welcoming family home with generous living areas and a fenced backyard, close to local parks, groceries, and neighborhood dining.',
+    available: 'Available Jan 1',
   },
   {
     id: 5,
     title: 'Bright Apartment in Miami',
-    location: 'Miami, Florida',
+    location: 'Miami, FL',
+    fullLocation: 'Little Havana, Miami, Florida',
     price: 1450,
     type: 'Apartment',
-    beds: '2 Beds',
-    image:
-      'https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?auto=format&fit=crop&w=900&q=80',
-    badge: 'Hot pick',
-    features: ['Ocean view', 'Pool', 'Walk to transit'],
+    beds: 2,
+    baths: 1,
+    sqft: 920,
+    image: 'https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?auto=format&fit=crop&w=1200&q=85',
+    images: ['https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?auto=format&fit=crop&w=1200&q=85', 'https://images.unsplash.com/photo-1493809842364-78817add7ffb?auto=format&fit=crop&w=900&q=80', 'https://images.unsplash.com/photo-1600210492486-724fe5c67fb0?auto=format&fit=crop&w=900&q=80'],
+    badge: 'Popular',
+    features: ['Pool access', 'Bright open plan', 'Walk to transit', 'On-site laundry'],
+    description: 'A sunlit apartment with a practical open layout and community pool, placed close to transit, everyday essentials, and Miami neighborhood favorites.',
+    available: 'Available now',
   },
   {
     id: 6,
     title: 'Townhome in Denver',
-    location: 'Denver, Colorado',
+    location: 'Denver, CO',
+    fullLocation: 'Sloan Lake, Denver, Colorado',
     price: 1680,
     type: 'Townhome',
-    beds: '2 Beds',
-    image:
-      'https://images.unsplash.com/photo-1448630360428-65456885c650?auto=format&fit=crop&w=900&q=80',
+    beds: 2,
+    baths: 2,
+    sqft: 1240,
+    image: 'https://images.unsplash.com/photo-1448630360428-65456885c650?auto=format&fit=crop&w=1200&q=85',
+    images: ['https://images.unsplash.com/photo-1448630360428-65456885c650?auto=format&fit=crop&w=1200&q=85', 'https://images.unsplash.com/photo-1600607687939-ce8a6c25118c?auto=format&fit=crop&w=900&q=80', 'https://images.unsplash.com/photo-1600210492486-724fe5c67fb0?auto=format&fit=crop&w=900&q=80'],
     badge: 'Move-in ready',
-    features: ['Washer & dryer', 'Mountain views', 'Near trails'],
+    features: ['Washer & dryer', 'Private entrance', 'Near trails', 'Attached garage'],
+    description: 'Make yourself at home in this welcoming townhome near Sloan Lake, with a private entrance, practical storage, and room to unwind after exploring the city.',
+    available: 'Available now',
   },
 ]
 
-const priceList = [
-  { city: 'Austin, TX', studio: '$1,050', oneBed: '$1,250', twoBed: '$1,500' },
-  { city: 'Phoenix, AZ', studio: '$1,100', oneBed: '$1,350', twoBed: '$1,750' },
-  { city: 'Charlotte, NC', studio: '$1,050', oneBed: '$1,200', twoBed: '$1,650' },
-  { city: 'Atlanta, GA', studio: '$1,150', oneBed: '$1,400', twoBed: '$1,900' },
-]
+const locations = [...new Set(listings.map((listing) => listing.location))]
+const money = (amount) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(amount)
 
-const locations = [
-  'Austin, TX',
-  'Phoenix, AZ',
-  'Charlotte, NC',
-  'Atlanta, GA',
-  'Miami, FL',
-  'Denver, CO',
-]
-
-const features = [
-  'Affordable monthly pricing',
-  'Verified clean apartments',
-  'Flexible booking and offers',
-  'Great locations near work and schools',
-]
-
-const stats = [
-  { value: '3.4k+', label: 'happy renters' },
-  { value: '250+', label: 'homes available' },
-  { value: '12 cities', label: 'across the US' },
-  { value: '24/7', label: 'support assistance' },
-]
+function Brand() {
+  return <a className="brand-wrap brand-link" href="#home" aria-label="OpenDoor Living home"><span className="brand-mark">OD</span><span><span className="brand-name">OpenDoor</span><span className="brand-sub">Living</span></span></a>
+}
 
 function App() {
-  const previewOffer = 1300
+  const [filters, setFilters] = useState({ location: 'Any city', budget: 'Any budget', beds: 'Any' })
+  const [appliedFilters, setAppliedFilters] = useState(filters)
+  const [selectedListing, setSelectedListing] = useState(null)
+  const [favorites, setFavorites] = useState([])
+  const [bookingListing, setBookingListing] = useState(null)
+  const [offer, setOffer] = useState(1300)
+  const [submitted, setSubmitted] = useState(false)
+
+  const filteredListings = useMemo(() => listings.filter((listing) => {
+    const matchesLocation = appliedFilters.location === 'Any city' || listing.location === appliedFilters.location
+    const matchesBeds = appliedFilters.beds === 'Any' || (appliedFilters.beds === 'Studio' ? listing.beds === 0 : listing.beds === Number(appliedFilters.beds))
+    const [min, max] = appliedFilters.budget === 'Any budget' ? [0, Infinity] : appliedFilters.budget.split('-').map((value) => Number(value.replace(/[$,]/g, '')))
+    return matchesLocation && matchesBeds && listing.price >= min && listing.price <= max
+  }), [appliedFilters])
+
+  const openBooking = (listing) => {
+    setBookingListing(listing)
+    setOffer(listing.price)
+    setSubmitted(false)
+    window.setTimeout(() => document.getElementById('booking')?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 0)
+  }
+
+  const toggleFavorite = (id) => setFavorites((current) => current.includes(id) ? current.filter((item) => item !== id) : [...current, id])
+
+  const submitBooking = (event) => {
+    event.preventDefault()
+    setSubmitted(true)
+  }
+
+  const showListings = () => {
+    setSelectedListing(null)
+    setBookingListing(null)
+    window.setTimeout(() => document.getElementById('featured')?.scrollIntoView({ behavior: 'smooth' }), 0)
+  }
 
   return (
     <div className="page-shell">
       <header className="topbar container">
-        <div className="brand-wrap">
-          <div className="brand-mark">OD</div>
-          <div>
-            <span className="brand-name">OpenDoor</span>
-            <span className="brand-sub">Living</span>
-          </div>
-        </div>
-
+        <Brand />
         <nav className="main-nav" aria-label="Main navigation">
-          <a href="#featured">Homes</a>
-          <a href="#prices">Pricing</a>
-          <a href="#locations">Locations</a>
-          <a href="#offers">Offers</a>
+          <a href="#featured">Explore homes</a><a href="#how-it-works">How it works</a><a href="#prices">Price guide</a>
         </nav>
-
-        <button className="nav-button">Book a tour</button>
+        <button className="nav-button" onClick={() => openBooking(listings[0])}>Book a tour</button>
       </header>
 
       <main>
-        <section className="hero container">
-          <div className="hero-copy">
-            <span className="eyebrow">Find your next home</span>
-            <h1>Affordable rentals with comfort, style, and peace of mind.</h1>
-            <p>
-              Discover clean apartments and spacious homes in top U.S. neighborhoods.
-              Browse listings, compare prices, and choose a place that fits your lifestyle.
-            </p>
+        {selectedListing ? (
+          <section className="container detail-page">
+            <button className="back-link" onClick={() => setSelectedListing(null)}>← Back to homes</button>
+            <div className="detail-heading"><div><span className="eyebrow">{selectedListing.badge}</span><h1>{selectedListing.title}</h1><p className="location-row">⌖ {selectedListing.fullLocation}</p></div><strong className="detail-price">{money(selectedListing.price)}<small> / month</small></strong></div>
+            <div className="detail-gallery">{selectedListing.images.map((image, index) => <img key={image} className={index === 0 ? 'gallery-main' : ''} src={image} alt={`${selectedListing.title} interior ${index + 1}`} />)}</div>
+            <div className="detail-layout"><div className="detail-main"><div className="detail-facts"><span>🛏 {selectedListing.beds === 0 ? 'Studio' : `${selectedListing.beds} bedrooms`}</span><span>♧ {selectedListing.baths} bathroom{selectedListing.baths > 1 ? 's' : ''}</span><span>⌂ {selectedListing.sqft.toLocaleString()} sq ft</span><span>✓ {selectedListing.available}</span></div><h2>About this home</h2><p>{selectedListing.description}</p><h2>Home highlights</h2><div className="amenity-grid">{selectedListing.features.map((feature) => <span key={feature}>✓ &nbsp;{feature}</span>)}</div><div className="neighborhood-note"><h2>About the neighborhood</h2><p>Enjoy the convenience of nearby groceries, local cafes, parks, and public transit. Exact address and tour details are shared by the property team.</p></div></div><aside className="detail-booking"><span className="eyebrow">Make it yours</span><h2>{money(selectedListing.price)} <small>/ month</small></h2><p>Ask a question, propose a price, or request a tour. Requests are not reservations.</p><button className="primary-btn full-width" onClick={() => openBooking(selectedListing)}>Request a tour or apply</button><button className="secondary-btn full-width favorite-detail" onClick={() => toggleFavorite(selectedListing.id)}>{favorites.includes(selectedListing.id) ? '♥ Saved to favorites' : '♡ Save this home'}</button><small>Sample listing for demonstration. Availability and terms must be confirmed.</small></aside></div>
+          </section>
+        ) : (
+          <>
+            <section id="home" className="hero container">
+              <div className="hero-copy"><span className="eyebrow">A better way to rent</span><h1>Find a place that feels like <em>home.</em></h1><p>Explore welcoming rentals, clear monthly prices, and a simple way to request a tour or make an offer.</p><div className="cta-row"><a className="primary-btn button-link" href="#featured">Explore available homes</a><a className="secondary-btn button-link" href="#how-it-works">How it works</a></div><div className="hero-trust"><span>✓ Clear monthly pricing</span><span>✓ Flexible requests</span><span>✓ No-pressure browsing</span></div></div>
+              <div className="hero-visual"><img src="https://images.unsplash.com/photo-1600210492486-724fe5c67fb0?auto=format&fit=crop&w=1400&q=85" alt="Warm, bright modern apartment living room"/><div className="floating-card"><span className="card-label">A place to settle in</span><h3>Room for your next chapter</h3><p>Explore homes from {money(1050)} / month</p></div></div>
+            </section>
 
-            <div className="cta-row">
-              <button className="primary-btn">Explore homes</button>
-              <button className="secondary-btn">View price list</button>
-            </div>
+            <section className="filter-strip container" aria-label="Search rental homes">
+              <div className="filter-item"><label htmlFor="location-filter">Location</label><select id="location-filter" value={filters.location} onChange={(event) => setFilters({ ...filters, location: event.target.value })}><option>Any city</option>{locations.map((location) => <option key={location}>{location}</option>)}</select></div>
+              <div className="filter-item"><label htmlFor="budget-filter">Monthly budget</label><select id="budget-filter" value={filters.budget} onChange={(event) => setFilters({ ...filters, budget: event.target.value })}><option>Any budget</option><option>$800-$1,200</option><option>$1,200-$1,600</option><option>$1,600-$2,000</option><option>$2,000-$3,000</option></select></div>
+              <div className="filter-item"><label htmlFor="beds-filter">Bedrooms</label><select id="beds-filter" value={filters.beds} onChange={(event) => setFilters({ ...filters, beds: event.target.value })}><option>Any</option><option>Studio</option><option value="1">1 bedroom</option><option value="2">2 bedrooms</option><option value="3">3 bedrooms</option></select></div>
+              <button className="primary-btn filter-btn" onClick={() => { setAppliedFilters(filters); document.getElementById('featured')?.scrollIntoView({ behavior: 'smooth' }) }}>Search homes</button>
+            </section>
 
-            <div className="mini-stats">
-              {stats.map((item) => (
-                <div key={item.label} className="mini-stat">
-                  <strong>{item.value}</strong>
-                  <span>{item.label}</span>
-                </div>
-              ))}
-            </div>
-          </div>
+            <section id="featured" className="container section-block">
+              <div className="section-heading"><div><span className="eyebrow">Find your fit</span><h2>Homes worth coming home to</h2><p className="section-intro">Browse our sample collection and open a listing to explore the details.</p></div><span className="results-count">{filteredListings.length} homes to explore</span></div>
+              {filteredListings.length ? <div className="listing-grid">{filteredListings.map((listing) => <article key={listing.id} className="listing-card"><div className="card-image-wrap"><button className={`save-button ${favorites.includes(listing.id) ? 'is-saved' : ''}`} aria-label={favorites.includes(listing.id) ? 'Remove from saved homes' : 'Save home'} onClick={() => toggleFavorite(listing.id)}>{favorites.includes(listing.id) ? '♥' : '♡'}</button><button className="image-open" onClick={() => setSelectedListing(listing)} aria-label={`View ${listing.title}`}><img src={listing.image} alt={listing.title}/></button><span className="badge">{listing.badge}</span></div><div className="card-content"><div className="card-topline"><span>{listing.type}</span><strong>{money(listing.price)}<small>/mo</small></strong></div><button className="listing-title-button" onClick={() => setSelectedListing(listing)}><h3>{listing.title}</h3></button><p className="location-row">⌖ {listing.location}</p><div className="meta-row"><span>{listing.beds === 0 ? 'Studio' : `${listing.beds} bed${listing.beds > 1 ? 's' : ''}`}</span><span>{listing.baths} bath</span><span>{listing.sqft.toLocaleString()} sq ft</span></div><div className="card-feature">{listing.features.slice(0, 2).join(' · ')}</div><button className="card-button" onClick={() => setSelectedListing(listing)}>View home details <span>→</span></button></div></article>)}</div> : <div className="empty-results"><h3>No homes match those filters yet</h3><p>Try a different city, bedroom count, or monthly budget.</p><button className="secondary-btn" onClick={() => { const reset = { location: 'Any city', budget: 'Any budget', beds: 'Any' }; setFilters(reset); setAppliedFilters(reset) }}>Clear filters</button></div>}
+            </section>
 
-          <div className="hero-visual" aria-label="Featured home visual">
-            <img
-              src="https://images.unsplash.com/photo-1460317442991-0ec209397118?auto=format&fit=crop&w=1200&q=80"
-              alt="Modern apartment exterior"
-            />
-            <div className="floating-card">
-              <span className="card-label">Featured</span>
-              <h3>City View Apartment</h3>
-              <p>From $1,250/mo</p>
-            </div>
-          </div>
-        </section>
+            <section id="how-it-works" className="container section-block how-panel"><div className="section-heading"><div><span className="eyebrow">Simple from start to finish</span><h2>Your next home, in three steps</h2></div></div><div className="steps-grid"><article><span>01</span><h3>Find your fit</h3><p>Filter by city, budget, and bedrooms to narrow down homes that suit your needs.</p></article><article><span>02</span><h3>Explore the details</h3><p>Review the sample rent, home features, and neighborhood information before you reach out.</p></article><article><span>03</span><h3>Send a request</h3><p>Ask for a tour or submit an offer request. The property team can confirm availability and terms.</p></article></div></section>
 
-        <section className="filter-strip container">
-          <div className="filter-item">
-            <label>Location</label>
-            <select defaultValue="Any city">
-              <option>Any city</option>
-              {locations.map((location) => (
-                <option key={location}>{location}</option>
-              ))}
-            </select>
-          </div>
+            <section id="prices" className="container section-block"><div className="section-heading"><div><span className="eyebrow">Clear price guide</span><h2>Sample monthly rent by city</h2><p className="section-intro">Illustrative starting rents only. Actual pricing depends on the specific property.</p></div></div><div className="price-cards">{locations.map((location) => { const lowest = Math.min(...listings.filter((item) => item.location === location).map((item) => item.price)); return <article key={location}><span>⌖ {location}</span><strong>From {money(lowest)}<small> / month</small></strong><button onClick={() => { const next = { ...filters, location }; setFilters(next); setAppliedFilters(next); showListings() }}>Explore homes →</button></article> })}</div></section>
 
-          <div className="filter-item">
-            <label>Rent</label>
-            <select defaultValue="Any budget">
-              <option>Any budget</option>
-              <option>$800-$1,200</option>
-              <option>$1,200-$1,600</option>
-              <option>$1,600-$2,000</option>
-            </select>
-          </div>
+            <section className="container section-block offer-panel"><div className="offer-copy"><span className="eyebrow">Flexible rent requests</span><h2>Your budget matters.</h2><p>Found a home you love? Choose a listing and send a proposed monthly rent. Offers are requests only and are subject to the property team's approval.</p><ul className="feature-list"><li>Choose an available home first</li><li>Set a rent proposal that works for you</li><li>Request a tour or ask a question in the same form</li></ul></div><div className="offer-card"><span className="offer-label">Explore a sample monthly offer</span><div className="offer-amount">{money(offer)}</div><input aria-label="Sample offer amount" type="range" min="800" max="2500" step="50" value={offer} onChange={(event) => setOffer(Number(event.target.value))}/><div className="range-scale"><span>$800</span><span>$2,500</span></div><button className="primary-btn full-width" onClick={() => openBooking(listings[0])}>Choose a home and make a request</button><p className="offer-disclaimer">The slider is a preview. Final offers are submitted for a specific listing.</p></div></section>
+          </>
+        )}
 
-          <div className="filter-item">
-            <label>Bedrooms</label>
-            <select defaultValue="Any">
-              <option>Any</option>
-              <option>Studio</option>
-              <option>1 Bed</option>
-              <option>2 Beds</option>
-              <option>3 Beds</option>
-            </select>
-          </div>
-
-          <button className="primary-btn filter-btn">Search homes</button>
-        </section>
-
-        <section id="featured" className="container section-block">
-          <div className="section-heading">
-            <div>
-              <span className="eyebrow">Available today</span>
-              <h2>Beautiful apartments and homes to rent</h2>
-            </div>
-            <a href="#prices">See all listings</a>
-          </div>
-
-          <div className="listing-grid">
-            {listings.map((listing) => (
-              <article key={listing.id} className="listing-card">
-                <div className="card-image-wrap">
-                  <img src={listing.image} alt={listing.title} />
-                  <span className="badge">{listing.badge}</span>
-                </div>
-                <div className="card-content">
-                  <div className="card-topline">
-                    <span>{listing.type}</span>
-                    <strong>${listing.price.toLocaleString()}/mo</strong>
-                  </div>
-                  <h3>{listing.title}</h3>
-                  <p className="location-row">{listing.location}</p>
-                  <div className="meta-row">
-                    <span>{listing.beds}</span>
-                    <span>2 baths</span>
-                    <span>1,200 sqft</span>
-                  </div>
-                  <ul>
-                    {listing.features.map((feature) => (
-                      <li key={feature}>{feature}</li>
-                    ))}
-                  </ul>
-                  <button className="card-button">Schedule a visit</button>
-                </div>
-              </article>
-            ))}
-          </div>
-        </section>
-
-        <section id="locations" className="container section-block alt-panel">
-          <div className="section-heading">
-            <div>
-              <span className="eyebrow">Top locations</span>
-              <h2>Good neighborhoods, better living</h2>
-            </div>
-          </div>
-
-          <div className="city-grid">
-            {locations.map((city, index) => (
-              <div className="city-card" key={city}>
-                <div className="city-thumb" style={{ backgroundImage: `url(${[
-                  'https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?auto=format&fit=crop&w=900&q=80',
-                  'https://images.unsplash.com/photo-1505693416388-ac5ce068fe85?auto=format&fit=crop&w=900&q=80',
-                  'https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?auto=format&fit=crop&w=900&q=80',
-                  'https://images.unsplash.com/photo-1494526585095-c41746248156?auto=format&fit=crop&w=900&q=80',
-                  'https://images.unsplash.com/photo-1484154218962-a197022b5858?auto=format&fit=crop&w=900&q=80',
-                  'https://images.unsplash.com/photo-1448630360428-65456885c650?auto=format&fit=crop&w=900&q=80',
-                ][index]})` }} />
-                <div className="city-card-body">
-                  <h3>{city}</h3>
-                  <p>Clean spaces, strong neighborhoods, and easy access to daily essentials.</p>
-                </div>
-              </div>
-            ))}
-          </div>
-        </section>
-
-        <section id="prices" className="container section-block">
-          <div className="section-heading">
-            <div>
-              <span className="eyebrow">Price guide</span>
-              <h2>Flexible rent options for every lifestyle</h2>
-            </div>
-          </div>
-
-          <div className="price-table-wrap">
-            <table className="price-table">
-              <thead>
-                <tr>
-                  <th>City</th>
-                  <th>Studio</th>
-                  <th>1BR</th>
-                  <th>2BR</th>
-                </tr>
-              </thead>
-              <tbody>
-                {priceList.map((row) => (
-                  <tr key={row.city}>
-                    <td>{row.city}</td>
-                    <td>{row.studio}</td>
-                    <td>{row.oneBed}</td>
-                    <td>{row.twoBed}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </section>
-
-        <section id="offers" className="container section-block offer-panel">
-          <div className="offer-copy">
-            <span className="eyebrow">Easy and flexible</span>
-            <h2>Choose a price plan or adjust your offer.</h2>
-            <p>
-              Looking for an even better deal? Submit your preferred price and we will help
-              match you with available options that fit your budget.
-            </p>
-
-            <ul className="feature-list">
-              {features.map((feature) => (
-                <li key={feature}>{feature}</li>
-              ))}
-            </ul>
-          </div>
-
-          <div className="offer-card">
-            <label className="offer-label">Preferred monthly rent</label>
-            <div className="offer-amount">${previewOffer.toLocaleString()}</div>
-            <input type="range" min="800" max="2500" step="50" defaultValue={1300} />
-            <div className="range-scale">
-              <span>$800</span>
-              <span>$2,500</span>
-            </div>
-            <button className="primary-btn full-width">Request this price</button>
-          </div>
-        </section>
+        {bookingListing && <section id="booking" className="container booking-section"><div className="booking-heading"><div><span className="eyebrow">A simple next step</span><h2>{submitted ? 'Your request is ready' : 'Request a tour or apply'}</h2><p>For <strong>{bookingListing.title}</strong> · {money(bookingListing.price)} / month</p></div><button className="close-button" onClick={() => { setBookingListing(null); setSubmitted(false) }} aria-label="Close request form">×</button></div>{submitted ? <div className="confirmation-panel" role="status"><span className="confirmation-icon">✓</span><h3>Thanks for reaching out!</h3><p>Your demo request has been recorded on this page. No message was sent to a landlord. Connect a backend or email service to receive real inquiries.</p><div className="confirmation-summary"><span>Home</span><strong>{bookingListing.title}</strong><span>Monthly rent request</span><strong>{money(offer)}</strong></div><button className="primary-btn" onClick={() => { setBookingListing(null); setSubmitted(false) }}>Continue exploring</button></div> : <form className="booking-form" onSubmit={submitBooking}><div className="form-grid"><label>Full name<input name="name" autoComplete="name" required placeholder="Your name"/></label><label>Email address<input name="email" type="email" autoComplete="email" required placeholder="you@example.com"/></label><label>Phone number <span className="optional">(optional)</span><input name="phone" type="tel" autoComplete="tel" placeholder="(555) 555-0123"/></label><label>What would you like to do?<select name="requestType" defaultValue="Tour request"><option>Tour request</option><option>Rental application inquiry</option><option>Ask a question</option></select></label><label>Preferred tour date <span className="optional">(optional)</span><input name="date" type="date" min={new Date().toISOString().slice(0, 10)}/></label><label>Proposed monthly rent<input name="offer" type="number" min="500" max="10000" step="25" required value={offer} onChange={(event) => setOffer(Number(event.target.value))}/></label></div><label className="message-label">Message <span className="optional">(optional)</span><textarea name="message" rows="4" placeholder="Tell us what you'd like to know or share your move-in timeline."/></label><p className="form-note">Submitting this demo form does not reserve a home or send your information anywhere. Offers and availability must be confirmed by the property manager.</p><button className="primary-btn" type="submit">Send request</button></form>}</section>}
       </main>
 
-      <footer className="site-footer">
-        <div className="container footer-inner">
-          <div>
-            <div className="brand-wrap footer-brand">
-              <div className="brand-mark">OD</div>
-              <div>
-                <span className="brand-name">OpenDoor</span>
-                <span className="brand-sub">Living</span>
-              </div>
-            </div>
-          </div>
-          <div className="footer-links">
-            <a href="#featured">Homes</a>
-            <a href="#prices">Prices</a>
-            <a href="#locations">Locations</a>
-          </div>
-          <p>© 2026 OpenDoor Living. All rights reserved.</p>
-        </div>
-      </footer>
+      <footer className="site-footer"><div className="container footer-inner"><Brand /><div className="footer-links"><a href="#featured">Explore homes</a><a href="#how-it-works">How it works</a><a href="#prices">Price guide</a></div><p>© 2026 OpenDoor Living · Sample listings for demonstration</p></div></footer>
     </div>
   )
 }
