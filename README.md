@@ -1,51 +1,43 @@
 # OpenDoor Living
 
-React + Vite rental marketplace and Node.js API backed by Supabase. The included homes and rent amounts are sample listings, not verified vacancies.
+React + Vite rental marketplace and Node.js API backed by Supabase. Included homes and rents are sample listings, not verified vacancies.
 
-## Requirements and local setup
+## Local setup
 
-- Node.js 20.19+ or 22.12+
-- npm
-- A Supabase project
-
-1. Install dependencies: `npm install`.
-2. In Supabase SQL Editor, run `supabase/migrations/202611080001_marketplace.sql`.
-3. Add sample properties to `public.listings` (the illustrative seed data is in `server/data/listings.json`; insert it through the Supabase table editor or SQL editor).
-4. Copy `.env.example` to `.env` and set the project URL, frontend publishable/anon key, and server-only service role key. Never expose or commit `SUPABASE_SERVICE_ROLE_KEY`.
-5. Create an admin user in Supabase Authentication. In SQL Editor, grant only trusted staff the admin app metadata claim:
+- Node.js 20.19+ or 22.12+, npm, and a Supabase project.
+- Run `npm install`.
+- Run `supabase/migrations/202611080001_marketplace.sql`, then `supabase/migrations/202611080002_property_ownership.sql` in the Supabase SQL Editor.
+- Configure `.env` from `.env.example`. `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` are browser-visible public config. `SUPABASE_SERVICE_ROLE_KEY` must remain a server-only secret and must never use a `VITE_` prefix.
+- Seed the `listings` table with your actual properties. The JSON in `server/data/listings.json` contains illustrative examples.
+- Create staff accounts using Supabase Auth. Grant trusted users an app metadata role from a secure admin environment (never user-editable metadata):
 
 ```sql
 update auth.users
 set raw_app_meta_data = coalesce(raw_app_meta_data, '{}'::jsonb) || '{"role":"admin"}'::jsonb
 where email = 'admin@example.com';
+
+update auth.users
+set raw_app_meta_data = coalesce(raw_app_meta_data, '{}'::jsonb) || '{"role":"owner"}'::jsonb
+where email = 'owner@example.com';
 ```
 
-The API verifies every admin bearer token with Supabase Auth and checks the signed `app_metadata.role` claim. Never use user-editable `user_metadata` as an authorization source.
+Start `npm run server` and `npm run dev` in separate terminals. Public site: `http://localhost:3000`; owner/admin portal: `http://localhost:3000/owner` or `/admin`. The API listens on port 3001 and Vite proxies `/api` to it.
 
-Start the API (`npm run server`) and frontend (`npm run dev`) in separate terminals. Open `http://localhost:3000`; admin dashboard: `http://localhost:3000/admin`. Vite proxies `/api` to port 3001. Set `PORT` and adjust the Vite proxy together if changing the API port.
+## Owner and admin features
 
-## Supabase environment variables
+- Owners can create, update, publish/unpublish, and archive their own property listings. New owner listings are assigned to their authenticated user ID by the API; updates and archives verify ownership server-side.
+- Admins can manage all properties, including legacy rows without an owner, and review/update inquiry status.
+- Archived properties are hidden from public browse/search; archive is a soft delete, preserving inquiry history.
+- Property fields include title, type, city/neighborhood, rent, beds/baths, area, images, features, description, availability, and publish status.
 
-- `VITE_SUPABASE_URL`: project URL used by the browser for Supabase Auth.
-- `VITE_SUPABASE_ANON_KEY`: publishable/anon key; safe to expose when RLS is correctly configured.
-- `SUPABASE_URL`: project URL used by the API.
-- `SUPABASE_SERVICE_ROLE_KEY`: secret server-side key, bypasses RLS; only configure in server environment/secrets manager.
-- `PORT`: optional API port (default 3001).
+## API
 
-## API routes
+- `GET /api/health`
+- `GET /api/listings` and `GET /api/listings/:id` (active/public listings)
+- `POST /api/inquiries`
+- `GET /api/admin/inquiries` and `PATCH /api/admin/inquiries/:uuid` (admin role required)
+- `GET /api/owner/listings`, `POST /api/owner/listings`, `PATCH /api/owner/listings/:id`, `DELETE /api/owner/listings/:id` (owner/admin role required; owners are scoped to their records)
 
-- `GET /api/health` — health check.
-- `GET /api/listings` and `GET /api/listings/:id` — active homes.
-- `POST /api/inquiries` — validates and saves tour/application inquiries; rate-limited per process/IP.
-- `GET /api/admin/inquiries` — admin-only inquiry list.
-- `PATCH /api/admin/inquiries/:uuid` — admin-only status update (`new`, `contacted`, `tour_scheduled`, `approved`, `rejected`, `closed`).
+## Production notes
 
-## Security and production notes
-
-The SQL migration enables RLS and allows public reads only for active listings. Public inquiry submission goes through the API, which validates input and uses the server-only Supabase service key. Admin APIs verify Supabase Auth tokens and require `app_metadata.role = admin`. The service-role key must never be placed in frontend `VITE_` variables.
-
-Before accepting real renter data, configure HTTPS, Supabase Auth email/password policies and MFA for staff, backups, retention/deletion processes, monitoring, and robust distributed rate limiting/bot protection. The included listing data is illustrative. The backend does not charge rent, approve leases, or guarantee availability. No live Supabase project has been provisioned by this code change; you must supply project credentials and run the migration.
-
-## Build
-
-`npm run build` creates the static frontend in `dist/`. Deploy the API separately as a Node service with its secrets configured, then set the production API base/proxy and frontend Supabase URL/key in deployment configuration.
+The API verifies Supabase Auth tokens and trusted `app_metadata.role` claims. RLS is enabled, and no direct browser write policies are created. The service-role key bypasses RLS, so protect it with a deployment secrets manager. Before accepting real renter data, configure HTTPS, MFA for staff, secure backups, retention/deletion procedures, monitoring, and distributed rate limiting/bot protection. Verify all real listing details and pricing. This application does not take payments, approve leases, or guarantee availability.

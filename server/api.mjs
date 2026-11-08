@@ -9,12 +9,14 @@ if (!supabaseUrl || !serviceKey) {
   process.exit(1)
 }
 
-// This privileged client is server-only. Never expose the service-role key to Vite/browser code.
+// Privileged client stays server-side; never expose the service-role key in Vite/browser code.
 const supabase = createClient(supabaseUrl, serviceKey, { auth: { autoRefreshToken: false, persistSession: false } })
-const maxBodyBytes = 16 * 1024
+const maxBodyBytes = 24 * 1024
 const rateWindowMs = 15 * 60 * 1000
 const maxRequestsPerWindow = 8
 const requestCounts = new Map()
+const inquiryStatuses = ['new', 'contacted', 'tour_scheduled', 'approved', 'rejected', 'closed']
+const listingFields = ['title', 'location', 'full_location', 'price', 'type', 'beds', 'baths', 'sqft', 'image', 'images', 'badge', 'features', 'description', 'available']
 
 const send = (res, status, payload) => {
   const body = JSON.stringify(payload)
@@ -37,8 +39,12 @@ async function readBody(req) {
     if (size > maxBodyBytes) throw Object.assign(new Error('Request body is too large.'), { status: 413 })
     chunks.push(chunk)
   }
-  try { return JSON.parse(Buffer.concat(chunks).toString('utf8')) } catch {
-    throw Object.assign(new Error('Request body must be valid JSON.'), { status: 400 })
+  try {
+    const value = JSON.parse(Buffer.concat(chunks).toString('utf8'))
+    if (!value || Array.isArray(value) || typeof value !== 'object') throw new Error()
+    return value
+  } catch {
+    throw Object.assign(new Error('Request body must be a JSON object.'), { status: 400 })
   }
 }
 
@@ -58,17 +64,61 @@ function withinRateLimit(req, res) {
   return true
 }
 
-async function requireAdmin(req) {
+async function getUser(req) {
   const token = req.headers.authorization?.match(/^Bearer\s+(.+)$/i)?.[1]
   if (!token) return null
   const { data, error } = await supabase.auth.getUser(token)
-  if (error || !data.user) return null
-  const metadata = data.user.app_metadata || {}
-  return metadata.role === 'admin' || metadata.is_admin === true ? data.user : null
+  return error ? null : data.user
+}
+
+async function requireStaff(req) {
+  const user = await getUser(req)
+  const role = user?.app_metadata?.role
+  return user && ['admin', 'owner'].includes(role) ? { user, role } : null
+}
+
+async function requireAdmin(req) {
+  const user = await getUser(req)
+  return user?.app_metadata?.role === 'admin' ? user : null
 }
 
 function validText(value, maxLength) {
   return typeof value === 'string' && value.trim().length > 0 && value.trim().length <= maxLength
+}
+
+function normalizeListing(body) {
+  const price = Number(body.price)
+  const beds = Number(body.beds)
+  const baths = Number(body.baths)
+  const sqft = Number(body.sqft)
+  if (!validText(body.title, 140)) throw Object.assign(new Error('Title is required (up to 140 characters).'), { status: 400 })
+  if (!validText(body.location, 100) || !validText(body.fullLocation, 180)) throw Object.assign(new Error('City and neighborhood are required.'), { status: 400 })
+  if (!Number.isInteger(price) || price < 1 || price > 100000) throw Object.assign(new Error('Monthly rent must be between $1 and $100,000.'), { status: 400 })
+  if (!validText(body.type, 50)) throw Object.assign(new Error('Property type is required.'), { status: 400 })
+  if (!Number.isInteger(beds) || beds < 0 || beds > 20) throw Object.assign(new Error('Bedrooms must be between 0 and 20 (use 0 for a studio).'), { status: 400 })
+  if (!Number.isFinite(baths) || baths < 0 || baths > 99) throw Object.assign(new Error('Enter a valid bathroom count.'), { status: 400 })
+  if (!Number.isInteger(sqft) || sqft < 0 || sqft > 100000) throw Object.assign(new Error('Square footage must be a non-negative whole number.'), { status: 400 })
+  if (!validText(body.image, 1000)) throw Object.assign(new Error('A primary image URL is required.'), { status: 400 })
+  try { if (!['http:', 'https:'].includes(new URL(body.image).protocol)) throw new Error() } catch { throw Object.assign(new Error('Primary image must be a valid HTTP(S) URL.'), { status: 400 }) }
+  const images = Array.isArray(body.images) ? body.images.slice(0, 12) : []
+  if (images.some((item) => typeof item !== 'string' || item.length > 1000 || !/^https?:\/\//i.test(item))) throw Object.assign(new Error('Gallery images must be HTTP(S) URLs.'), { status: 400 })
+  const features = Array.isArray(body.features) ? body.features : typeof body.features === 'string' ? body.features.split(',') : []
+  if (features.length > 30 || features.some((item) => typeof item !== 'string' || !item.trim() || item.trim().length > 80)) throw Object.assign(new Error('Enter up to 30 features (80 characters each).'), { status: 400 })
+  if (body.description != null && (typeof body.description !== 'string' || body.description.length > 3000)) throw Object.assign(new Error('Description must be 3,000 characters or fewer.'), { status: 400 })
+  return {
+    title: body.title.trim(), location: body.location.trim(), full_location: body.fullLocation.trim(), price,
+    type: body.type.trim(), beds, baths, sqft, image: body.image.trim(), images,
+    badge: typeof body.badge === 'string' && body.badge.trim() ? body.badge.trim().slice(0, 60) : 'Available',
+    features: features.map((item) => item.trim()),
+    description: body.description?.trim() || '',
+    available: typeof body.available === 'string' && body.available.trim() ? body.available.trim().slice(0, 100) : 'Contact for availability',
+  }
+}
+
+function fromDbListing(row) {
+  if (!row) return row
+  const { full_location, owner_id, is_active, created_at, updated_at, ...listing } = row
+  return { ...listing, fullLocation: full_location, ownerId: owner_id, isActive: is_active, createdAt: created_at, updatedAt: updated_at }
 }
 
 async function handle(req, res) {
@@ -88,25 +138,22 @@ async function handle(req, res) {
     if (bedrooms) query = query.eq('beds', bedrooms.toLowerCase() === 'studio' ? 0 : Number(bedrooms))
     const { data, error } = await query
     if (error) throw error
-    const listings = search ? data.filter((item) => `${item.title} ${item.location} ${item.full_location} ${item.type}`.toLowerCase().includes(search.toLowerCase())) : data
-    return send(res, 200, { listings: listings.map(({ full_location, ...item }) => ({ ...item, fullLocation: full_location })) })
+    const matched = search ? data.filter((item) => `${item.title} ${item.location} ${item.full_location} ${item.type}`.toLowerCase().includes(search.toLowerCase())) : data
+    return send(res, 200, { listings: matched.map(fromDbListing) })
   }
 
   const listingMatch = path.match(/^\/api\/listings\/([1-9]\d*)$/)
   if (req.method === 'GET' && listingMatch) {
     const { data, error } = await supabase.from('listings').select('*').eq('id', Number(listingMatch[1])).eq('is_active', true).maybeSingle()
     if (error) throw error
-    if (!data) return send(res, 404, { error: 'Home not found.' })
-    const { full_location, ...listing } = data
-    return send(res, 200, { listing: { ...listing, fullLocation: full_location } })
+    return data ? send(res, 200, { listing: fromDbListing(data) }) : send(res, 404, { error: 'Home not found.' })
   }
 
   if (req.method === 'POST' && path === '/api/inquiries') {
     if (!withinRateLimit(req, res)) return
     if (!req.headers['content-type']?.toLowerCase().startsWith('application/json')) return send(res, 415, { error: 'Content-Type must be application/json.' })
     const body = await readBody(req)
-    const listingId = Number(body.listingId)
-    const { data: listing, error: listingError } = await supabase.from('listings').select('id,title').eq('id', listingId).eq('is_active', true).maybeSingle()
+    const { data: listing, error: listingError } = await supabase.from('listings').select('id').eq('id', Number(body.listingId)).eq('is_active', true).maybeSingle()
     if (listingError) throw listingError
     const email = typeof body.email === 'string' ? body.email.trim().toLowerCase() : ''
     const offer = Number(body.offer)
@@ -119,16 +166,7 @@ async function handle(req, res) {
     if (!Number.isInteger(offer) || offer < 500 || offer > 10000) return send(res, 400, { error: 'Proposed rent must be between $500 and $10,000.' })
     if (body.message != null && (typeof body.message !== 'string' || body.message.length > 2000)) return send(res, 400, { error: 'Message must be 2,000 characters or fewer.' })
     if (body.preferredDate && !/^\d{4}-\d{2}-\d{2}$/.test(body.preferredDate)) return send(res, 400, { error: 'Preferred date must use YYYY-MM-DD format.' })
-    const { data, error } = await supabase.from('inquiries').insert({
-      listing_id: listing.id,
-      name: body.name.trim(),
-      email,
-      phone: body.phone?.trim() || null,
-      request_type: body.requestType,
-      preferred_date: body.preferredDate || null,
-      offer,
-      message: body.message?.trim() || null,
-    }).select('id,created_at,status').single()
+    const { data, error } = await supabase.from('inquiries').insert({ listing_id: listing.id, name: body.name.trim(), email, phone: body.phone?.trim() || null, request_type: body.requestType, preferred_date: body.preferredDate || null, offer, message: body.message?.trim() || null }).select('id,created_at,status').single()
     if (error) throw error
     return send(res, 201, { message: 'Your request has been received.', inquiry: data })
   }
@@ -143,15 +181,59 @@ async function handle(req, res) {
 
   const inquiryMatch = path.match(/^\/api\/admin\/inquiries\/([0-9a-f-]{36})$/i)
   if (inquiryMatch && req.method === 'PATCH') {
-    const admin = await requireAdmin(req)
-    if (!admin) return send(res, 401, { error: 'Admin sign-in required.' })
+    if (!await requireAdmin(req)) return send(res, 401, { error: 'Admin sign-in required.' })
     const body = await readBody(req)
-    const allowed = ['new', 'contacted', 'tour_scheduled', 'approved', 'rejected', 'closed']
-    if (!allowed.includes(body.status)) return send(res, 400, { error: 'Choose a valid inquiry status.' })
+    if (!inquiryStatuses.includes(body.status)) return send(res, 400, { error: 'Choose a valid inquiry status.' })
     const { data, error } = await supabase.from('inquiries').update({ status: body.status }).eq('id', inquiryMatch[1]).select('id,status').maybeSingle()
     if (error) throw error
-    if (!data) return send(res, 404, { error: 'Inquiry not found.' })
-    return send(res, 200, { inquiry: data })
+    return data ? send(res, 200, { inquiry: data }) : send(res, 404, { error: 'Inquiry not found.' })
+  }
+
+  if (path === '/api/owner/listings' && req.method === 'GET') {
+    const staff = await requireStaff(req)
+    if (!staff) return send(res, 401, { error: 'Owner or admin sign-in required.' })
+    let query = supabase.from('listings').select('*').order('created_at', { ascending: false })
+    if (staff.role !== 'admin') query = query.eq('owner_id', staff.user.id)
+    const { data, error } = await query.limit(500)
+    if (error) throw error
+    return send(res, 200, { listings: data.map(fromDbListing) })
+  }
+
+  if (path === '/api/owner/listings' && req.method === 'POST') {
+    const staff = await requireStaff(req)
+    if (!staff) return send(res, 401, { error: 'Owner or admin sign-in required.' })
+    if (!req.headers['content-type']?.toLowerCase().startsWith('application/json')) return send(res, 415, { error: 'Content-Type must be application/json.' })
+    const body = await readBody(req)
+    const listing = normalizeListing(body)
+    listing.is_active = body.isActive !== false
+    if (staff.role !== 'admin') listing.owner_id = staff.user.id
+    const { data, error } = await supabase.from('listings').insert(listing).select('*').single()
+    if (error) throw error
+    return send(res, 201, { listing: fromDbListing(data) })
+  }
+
+  const ownerListingMatch = path.match(/^\/api\/owner\/listings\/([1-9]\d*)$/)
+  if (ownerListingMatch && ['PATCH', 'DELETE'].includes(req.method)) {
+    const staff = await requireStaff(req)
+    if (!staff) return send(res, 401, { error: 'Owner or admin sign-in required.' })
+    const id = Number(ownerListingMatch[1])
+    let currentQuery = supabase.from('listings').select('id,owner_id').eq('id', id)
+    if (staff.role !== 'admin') currentQuery = currentQuery.eq('owner_id', staff.user.id)
+    const { data: current, error: currentError } = await currentQuery.maybeSingle()
+    if (currentError) throw currentError
+    if (!current) return send(res, 404, { error: 'Property not found or you do not have permission to manage it.' })
+    if (req.method === 'DELETE') {
+      const { error } = await supabase.from('listings').update({ is_active: false, updated_at: new Date().toISOString() }).eq('id', id)
+      if (error) throw error
+      return send(res, 200, { message: 'Property archived.' })
+    }
+    const body = await readBody(req)
+    const listing = normalizeListing(body)
+    listing.is_active = body.isActive !== false
+    listing.updated_at = new Date().toISOString()
+    const { data, error } = await supabase.from('listings').update(listing).eq('id', id).select('*').single()
+    if (error) throw error
+    return send(res, 200, { listing: fromDbListing(data) })
   }
 
   return send(res, 404, { error: 'Not found.' })
