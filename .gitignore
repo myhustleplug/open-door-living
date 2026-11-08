@@ -2,6 +2,8 @@ node_modules
 /dist
 .gitignore
 .DS_Store
+.env
+.env.*
+!.env.example
 server/data/inquiries.json
 server/data/inquiries.json.*.tmp
-.env

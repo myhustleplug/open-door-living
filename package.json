@@ -1,7 +1,7 @@
 {
   "name": "open-door-living",
   "private": true,
-  "version": "1.1.0",
+  "version": "1.2.0",
   "type": "module",
   "scripts": {
     "dev": "vite --host 0.0.0.0",
@@ -11,6 +11,7 @@
     "preview": "vite preview --host 0.0.0.0"
   },
   "dependencies": {
+    "@supabase/supabase-js": "^2.49.1",
     "react": "^18.3.1",
     "react-dom": "^18.3.1"
   },

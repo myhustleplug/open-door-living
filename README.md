@@ -1,64 +1,51 @@
 # OpenDoor Living
 
-A React + Vite rental marketplace demo with a small Node.js API. The included rental listings and prices are sample data and are not verified real vacancies.
+React + Vite rental marketplace and Node.js API backed by Supabase. The included homes and rent amounts are sample listings, not verified vacancies.
 
-## Requirements
+## Requirements and local setup
 
 - Node.js 20.19+ or 22.12+
 - npm
+- A Supabase project
 
-## Run locally
+1. Install dependencies: `npm install`.
+2. In Supabase SQL Editor, run `supabase/migrations/202611080001_marketplace.sql`.
+3. Add sample properties to `public.listings` (the illustrative seed data is in `server/data/listings.json`; insert it through the Supabase table editor or SQL editor).
+4. Copy `.env.example` to `.env` and set the project URL, frontend publishable/anon key, and server-only service role key. Never expose or commit `SUPABASE_SERVICE_ROLE_KEY`.
+5. Create an admin user in Supabase Authentication. In SQL Editor, grant only trusted staff the admin app metadata claim:
 
-Install packages once:
-
-```bash
-npm install
+```sql
+update auth.users
+set raw_app_meta_data = coalesce(raw_app_meta_data, '{}'::jsonb) || '{"role":"admin"}'::jsonb
+where email = 'admin@example.com';
 ```
 
-Start the API in one terminal:
+The API verifies every admin bearer token with Supabase Auth and checks the signed `app_metadata.role` claim. Never use user-editable `user_metadata` as an authorization source.
 
-```bash
-npm run server
-```
+Start the API (`npm run server`) and frontend (`npm run dev`) in separate terminals. Open `http://localhost:3000`; admin dashboard: `http://localhost:3000/admin`. Vite proxies `/api` to port 3001. Set `PORT` and adjust the Vite proxy together if changing the API port.
 
-Start the frontend in another terminal:
+## Supabase environment variables
 
-```bash
-npm run dev
-```
+- `VITE_SUPABASE_URL`: project URL used by the browser for Supabase Auth.
+- `VITE_SUPABASE_ANON_KEY`: publishable/anon key; safe to expose when RLS is correctly configured.
+- `SUPABASE_URL`: project URL used by the API.
+- `SUPABASE_SERVICE_ROLE_KEY`: secret server-side key, bypasses RLS; only configure in server environment/secrets manager.
+- `PORT`: optional API port (default 3001).
 
-Open http://localhost:3000. Vite proxies `/api` requests to the API on port 3001. To change the API port, set `PORT` and update the proxy target in `vite.config.js` to match.
-
-## API
+## API routes
 
 - `GET /api/health` — health check.
-- `GET /api/listings` — list properties. Optional filters: `q`, `location`, `maxPrice`, and `bedrooms` (use `studio` for studios).
-- `GET /api/listings/:id` — one property by ID.
-- `POST /api/inquiries` — validate and save a tour, application inquiry, or question.
-- `GET /api/inquiries` — private inquiry listing; requires `Authorization: Bearer <ADMIN_API_TOKEN>`.
+- `GET /api/listings` and `GET /api/listings/:id` — active homes.
+- `POST /api/inquiries` — validates and saves tour/application inquiries; rate-limited per process/IP.
+- `GET /api/admin/inquiries` — admin-only inquiry list.
+- `PATCH /api/admin/inquiries/:uuid` — admin-only status update (`new`, `contacted`, `tour_scheduled`, `approved`, `rejected`, `closed`).
 
-Example inquiry request:
+## Security and production notes
 
-```bash
-curl -X POST http://localhost:3001/api/inquiries \\
-  -H 'Content-Type: application/json' \\
-  -d '{"listingId":1,"name":"Alex R","email":"alex@example.com","requestType":"Tour request","offer":1050}'
-```
+The SQL migration enables RLS and allows public reads only for active listings. Public inquiry submission goes through the API, which validates input and uses the server-only Supabase service key. Admin APIs verify Supabase Auth tokens and require `app_metadata.role = admin`. The service-role key must never be placed in frontend `VITE_` variables.
 
-Set an admin token before starting the API if you need to review inquiries:
-
-```bash
-ADMIN_API_TOKEN='use-a-long-random-secret' npm run server
-```
-
-On Windows PowerShell, use `$env:ADMIN_API_TOKEN="use-a-long-random-secret"; npm run server`.
-
-Inquiry submissions are written to `server/data/inquiries.json`, which is intentionally git-ignored because it contains personal information. Back up this file securely; the JSON file store is suitable for local development and a single-instance demo, not a multi-instance production deployment. Use a managed database, TLS, stronger abuse controls, retention/access policies, and a secure secrets manager before accepting real tenant inquiries. The API does not process payments or make bookings.
+Before accepting real renter data, configure HTTPS, Supabase Auth email/password policies and MFA for staff, backups, retention/deletion processes, monitoring, and robust distributed rate limiting/bot protection. The included listing data is illustrative. The backend does not charge rent, approve leases, or guarantee availability. No live Supabase project has been provisioned by this code change; you must supply project credentials and run the migration.
 
 ## Build
 
-```bash
-npm run build
-```
-
-The Vite production build outputs `dist/`. Deploying the static frontend does not deploy the API; host both and configure the frontend API proxy/base URL for your chosen platform.
+`npm run build` creates the static frontend in `dist/`. Deploy the API separately as a Node service with its secrets configured, then set the production API base/proxy and frontend Supabase URL/key in deployment configuration.
